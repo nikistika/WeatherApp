@@ -1,6 +1,7 @@
 package com.example.weatherapp.network
 
 import com.example.weatherapp.model.currentweather.CurrentWeather
+import com.example.weatherapp.model.forecast.FiveDayForecast
 import com.example.weatherapp.model.forecast.Forecast
 import com.example.weatherapp.model.geocoding.Geocoding
 import retrofit2.Response
@@ -29,5 +30,5 @@ interface WeatherApi {
         @Query("lon") lon: Double,
         @Query("appid") appId: String,
         @Query("units") units: String,
-    ): Response<Forecast>
+    ): Response<FiveDayForecast>
 }
