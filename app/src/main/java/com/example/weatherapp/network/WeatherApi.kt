@@ -1,9 +1,8 @@
 package com.example.weatherapp.network
 
-import com.example.weatherapp.model.currentweather.CurrentWeather
-import com.example.weatherapp.model.forecast.FiveDayForecast
-import com.example.weatherapp.model.forecast.Forecast
-import com.example.weatherapp.model.geocoding.Geocoding
+import com.example.weatherapp.models.currentweather.CurrentWeather
+import com.example.weatherapp.models.forecast.FiveDayForecast
+import com.example.weatherapp.models.geocoding.Geocoding
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query

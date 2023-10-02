@@ -1,62 +1,80 @@
 package com.example.weatherapp
 
+import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
-import android.widget.TextView
+import android.view.inputmethod.InputMethodManager
+import androidx.activity.viewModels
+import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
-import com.example.weatherapp.network.RetrofitHelper
-import com.example.weatherapp.network.WeatherApi
+import androidx.viewpager2.widget.ViewPager2
+import com.example.weatherapp.databinding.ActivityMainBinding
+import com.example.weatherapp.viewModel.MainViewModel
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
+import com.google.android.material.textfield.TextInputLayout
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var locationLabel: TextView
-    private lateinit var currentWeatherLabel: TextView
-    private lateinit var forecastLabel: TextView
+    private val mainViewModel: MainViewModel by viewModels()
 
-    private val retrofitClient = RetrofitHelper.getInstance().create(WeatherApi::class.java)
+    private lateinit var viewPager: ViewPager2
+    private lateinit var tabLayout: TabLayout
+
+    private lateinit var inputField: TextInputLayout
+
+    private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        locationLabel = findViewById(R.id.locationLabel)
-        currentWeatherLabel = findViewById(R.id.currentWeatherLabel)
-        forecastLabel = findViewById(R.id.forecastLabel)
+        viewPager = binding.viewPager
+        tabLayout = binding.tabLayout
+        inputField = binding.mainInputFiled
 
+        inputField.setEndIconOnClickListener {
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            val appleId = "ab869752f1de6b0adccb01f8d2578742"
+            val inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            if (inputMethodManager.isActive){
+                inputMethodManager.hideSoftInputFromWindow(binding.root.windowToken, 0)
+            }
 
-            //Делаем первый запрос на получение координат
-            //limit - количество результатов, то есть количество городов
-            val result = retrofitClient.getGeocoding("London", limit = "1",appleId)
-
-            //Мы извлекаем из результата наши координаты lat и lot
-            val latResult = result.body()?.first()?.lat ?:0.0
-            val lonResult = result.body()?.first()?.lon ?:0.0
-
-            //Мы делаем второй запрос на получение текущей погоды. И передаём наши координаты.
-            val currentWeather = retrofitClient.getCurrentWeather(latResult, lonResult, appleId, "metric")
-
-            //Мы делаем третий запрос на получение погоды на несколько дней. И передаём наши координаты.
-            val forecast = retrofitClient.getForecast(latResult, lonResult, appleId, "metric")
-
-            Log.d("MyLog", "geoCoding --> ${result.body()}")
-            Log.d("MyLog", "currentWeather --> ${currentWeather.body()}")
-            Log.d("MyLog", "forecast --> ${forecast.message()}")
-            Log.d("MyLog", "forecast --> ${forecast.isSuccessful}")
-            Log.d("MyLog", "forecast --> ${forecast.body()}")
-
-
-            withContext(Dispatchers.Main) {
-                locationLabel.text = "Location: $latResult $lonResult"
-                currentWeatherLabel.text = currentWeather.body()?.weather?.first()?.description ?: ""
-                forecastLabel.text = forecast.body()?.list?.first()?.weather?.first()?.description ?: ""
+            //Используем Main, тк работаем с LiveData
+            lifecycleScope.launch(Dispatchers.Main) {
+                mainViewModel.getCoordinates(inputField.editText?.text.toString())
             }
         }
+
+        mainViewModel.coordinatesResult.observe(this, Observer {
+            lifecycleScope.launch {
+                mainViewModel.getForecast(it.lat,it.lon)
+                mainViewModel.getCurrentWeather(it.lat, it.lon)
+            }
+        })
+
+        prepapeViewPager()
+
+    }
+
+    private fun prepapeViewPager() {
+        val fragmentList = arrayListOf(
+            WeatherFragment.newInstance(),
+            ForecastFragment.newInstance()
+        )
+
+        val tabTitlesArray = arrayOf("Weather", "Forecast")
+
+        viewPager.adapter = ViewPagerAdapter(this, fragmentList)
+
+        //Создаёт анимацию перелистывания
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = tabTitlesArray[position]
+        }.attach()
     }
 }
